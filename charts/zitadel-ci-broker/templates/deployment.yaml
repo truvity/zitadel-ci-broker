@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zitadel-ci-broker
+  labels: {{ include "zitadel-ci-broker.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels: {{ include "zitadel-ci-broker.labels" . | nindent 6 }}
+  template:
+    metadata:
+      labels: {{ include "zitadel-ci-broker.labels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ .Values.config | toYaml | sha256sum }}
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: zitadel-ci-broker
+          image: "{{ .Values.image.repository }}:{{ required "image.tag is required" .Values.image.tag }}"
+          args: ["-config", "/etc/zitadel-ci-broker/config.yaml"]
+          ports:
+            - name: http
+              containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          resources: {{ toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/zitadel-ci-broker
+              readOnly: true
+            - name: keys
+              mountPath: /keys
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: zitadel-ci-broker
+        - name: keys
+          secret:
+            secretName: {{ required "keysSecretName is required" .Values.keysSecretName }}

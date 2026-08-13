@@ -1,0 +1,9 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: zitadel-ci-broker
+  labels: {{ include "zitadel-ci-broker.labels" . | nindent 4 }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: {{ include "zitadel-ci-broker.labels" . | nindent 6 }}

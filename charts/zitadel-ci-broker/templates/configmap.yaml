@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zitadel-ci-broker
+  labels: {{ include "zitadel-ci-broker.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    {{- required "config is required" .Values.config | toYaml | nindent 4 }}

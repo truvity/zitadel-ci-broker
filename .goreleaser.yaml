@@ -1,0 +1,75 @@
+project_name: zitadel-ci-broker
+
+version: 2
+
+builds:
+  # K8s/local binary.
+  - id: zitadel-ci-broker
+    main: ./cmd/zitadel-ci-broker
+    binary: zitadel-ci-broker
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.Version={{.Version}}
+
+archives:
+  # Raw binary archive (for manual installs / custom deployments).
+  - id: binary
+    ids:
+      - zitadel-ci-broker
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+
+kos:
+  - id: zitadel-ci-broker
+    build: zitadel-ci-broker
+    tags:
+      - "{{ .Version }}"
+      - "{{ if not .IsSnapshot }}latest{{ end }}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    bare: true
+    preserve_import_paths: false
+    base_import_paths: true
+    base_image: gcr.io/distroless/static:nonroot
+    sbom: none
+    labels:
+      org.opencontainers.image.title: zitadel-ci-broker
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.source: https://github.com/truvity/zitadel-ci-broker
+
+release:
+  github:
+    owner: truvity
+    name: zitadel-ci-broker
+  header: |
+    ## Zitadel RBAC Mapper {{ .Tag }}
+
+    Docker image: `ghcr.io/truvity/zitadel-ci-broker:{{ .Version }}`
+    Helm chart: `oci://ghcr.io/truvity/charts/zitadel-ci-broker:{{ .Version }}`
+
+changelog:
+  use: github
+  groups:
+    - title: Features
+      regexp: '^feat'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^fix'
+      order: 1
+    - title: Other
+      order: 999
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"

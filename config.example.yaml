@@ -1,0 +1,16 @@
+# zitadel-ci-broker configuration — see README.md.
+listen: :8080
+zitadel:
+  domain: https://auth.example.com
+github:
+  # issuer defaults to https://token.actions.githubusercontent.com
+  audience: zitadel-ci-broker
+identities:
+  - subjects:
+      - "repo:my-org/my-repo:ref:refs/heads/*"
+      - "repo:my-org/my-repo:pull_request"
+    user: ci-my-org-my-repo-preview
+    keyFile: /keys/ci-my-org-my-repo-preview
+    scopes:
+      - openid
+      - urn:zitadel:iam:org:project:id:123456789:aud

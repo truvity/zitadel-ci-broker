@@ -1,0 +1,26 @@
+image:
+  repository: ghcr.io/truvity/zitadel-ci-broker
+  tag: "" # required — pin a release
+
+replicas: 2
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 128Mi
+
+nodeSelector: {}
+tolerations: []
+
+# The broker's YAML config document, verbatim (see config.example.yaml
+# in the repository). The deployment mounts it at
+# /etc/zitadel-ci-broker/config.yaml.
+config: {}
+
+# Name of the Secret carrying the machine-user key files; each key of
+# the Secret becomes a file under /keys (config keyFile paths point
+# there). Provisioning the Secret (e.g. via external-secrets) is the
+# installer's concern.
+keysSecretName: ""

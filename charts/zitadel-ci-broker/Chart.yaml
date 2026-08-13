@@ -1,0 +1,9 @@
+apiVersion: v2
+name: zitadel-ci-broker
+description: >-
+  Token broker for CI machine identities — exchanges GitHub Actions
+  OIDC tokens for Zitadel machine-user tokens (workload identity
+  federation as a service, until Zitadel ships it natively).
+type: application
+version: 0.0.0 # set by the release workflow
+appVersion: 0.0.0
