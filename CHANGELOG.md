@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.3.0]
+
+### Added
+- `.github/actions/setup-zcbctl` — a composite action that installs
+  `zcbctl` and adds it to PATH, so a consuming repository needs no
+  wrapper of its own. Version comes from the ref the action is pinned
+  to, and the download is checksum-verified against the release manifest
+  before anything is extracted.
+
 ## [0.2.0]
 
 ### Added
