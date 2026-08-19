@@ -5,7 +5,15 @@
 # made bar's private kube-broker-credential worth promoting in the first
 # place. The logic belongs to the repository that publishes the binary.
 #
-#   - uses: truvity/zitadel-ci-broker/.github/actions/setup-zcbctl@v0.3.0
+#   - uses: truvity/zitadel-ci-broker/.github/actions/setup-zcbctl@<sha> # v0.3.0
+#     with:
+#       version: v0.3.0
+#
+# Pin the SHA and name the version: the SHA pins this action's code, the
+# input names the release it downloads. A tag is mutable, and this action
+# runs on a job holding id-token: write. Pinning the SHA also removes the
+# only other source of a version (github.action_ref carries a tag only
+# when referenced by tag), which is why the input is not optional there.
 #   - run: kubectl get pods          # kubeconfig's exec: zcbctl k8s
 #   - run: aws sts get-caller-identity   # credential_process: zcbctl aws
 #
@@ -40,7 +48,7 @@ runs:
 
         version="${INPUT_VERSION:-${ACTION_REF}}"
         if [[ -z "${version}" || "${version}" != v* ]]; then
-          echo "::error::setup-zcbctl: no version — pin the action to a tag (@v0.2.0) or pass version:" >&2
+          echo "::error::setup-zcbctl: no version. When pinning this action by commit SHA (recommended — it runs on a job with id-token: write), pass version: v0.3.0 explicitly; github.action_ref carries a tag only when the action is referenced by tag." >&2
           exit 1
         fi
 
