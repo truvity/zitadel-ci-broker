@@ -18,6 +18,24 @@ builds:
     ldflags:
       - -s -w -X main.Version={{.Version}}
 
+  # Client. Consumers install THIS, not the server: it is what a workflow
+  # or a laptop runs to turn a Zitadel identity into k8s/AWS credentials.
+  # Shipped for darwin too — engineers run it from their machines, which
+  # is half its purpose.
+  - id: zcbctl
+    main: ./cmd/zcbctl
+    binary: zcbctl
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.Version={{.Version}}
+
 archives:
   # Raw binary archive (for manual installs / custom deployments).
   - id: binary
@@ -25,6 +43,14 @@ archives:
       - zitadel-ci-broker
     formats: [tar.gz]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+  # zcbctl ships as its own archive so a consumer can fetch just the
+  # client without pulling the server binary it has no use for.
+  - id: zcbctl
+    ids:
+      - zcbctl
+    formats: [tar.gz]
+    name_template: "zcbctl_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
 
 kos:
