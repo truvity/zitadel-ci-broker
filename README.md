@@ -62,6 +62,22 @@ provider. Neither knows or cares that a broker was involved.
 
 ## Use cases
 
+### 0. Install it
+
+In CI, one step — no wrapper to copy into each repository:
+
+```yaml
+- uses: truvity/zitadel-ci-broker/.github/actions/setup-zcbctl@v0.3.0
+```
+
+The action reads its version from the ref it is pinned to, verifies the
+download against the release's checksum manifest, and adds `zcbctl` to
+PATH. The calling job needs `permissions: id-token: write` — without it
+the workflow cannot obtain the GitHub OIDC proof this broker exchanges.
+
+On a laptop, install the released binary or `go install
+github.com/truvity/zitadel-ci-broker/cmd/zcbctl@latest`.
+
 ### 1. CI reaches Kubernetes
 
 The token is a bearer credential the API server accepts. Use it through
@@ -266,6 +282,11 @@ sending a token that expires mid-request.
 
 **One audience per identity.** Scopes are per-`identities` row, so a
 machine user that must reach two projects needs both `:aud` scopes listed.
+
+**The action pins itself by ref.** `setup-zcbctl` derives the version
+from `github.action_ref`, so `@v0.2.0` installs v0.2.0 and the two
+cannot drift. Pinning the action to a branch therefore fails closed
+rather than installing something unexpected.
 
 **GitHub-only proofs.** The verification path is GitHub Actions OIDC. Other
 CI systems would need their own issuer verification; the mapping and
