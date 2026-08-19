@@ -67,13 +67,44 @@ provider. Neither knows or cares that a broker was involved.
 In CI, one step — no wrapper to copy into each repository:
 
 ```yaml
-- uses: truvity/zitadel-ci-broker/.github/actions/setup-zcbctl@v0.3.0
+- uses: truvity/zitadel-ci-broker/.github/actions/setup-zcbctl@<commit-sha> # v0.3.0
+  with:
+    version: v0.3.0
 ```
 
-The action reads its version from the ref it is pinned to, verifies the
-download against the release's checksum manifest, and adds `zcbctl` to
-PATH. The calling job needs `permissions: id-token: write` — without it
-the workflow cannot obtain the GitHub OIDC proof this broker exchanges.
+**Pin the SHA and name the version — both.** They answer different
+questions, and giving only one is the mistake this section exists to
+prevent:
+
+| | what it pins |
+|---|---|
+| `@<commit-sha>` | the ACTION's code — the script that runs on your runner |
+| `version:` | the ARTIFACT it downloads — which `zcbctl` release |
+
+A tag is mutable. This action runs on a job holding
+`permissions: id-token: write`, so a moved tag is a credential-exposure
+path, not merely a reproducibility concern — pin the SHA.
+
+Doing so, however, removes the action's only other source of a version:
+it defaults from `github.action_ref`, which is a tag **only when the
+action is referenced by tag**. That is exactly what SHA pinning
+replaces, so the version has to be given explicitly. Omit it and the
+action fails closed with a message saying so, rather than guessing.
+
+`@v0.3.0` with no `version:` also works and is fine for a private
+repository that accepts tag mutability; it is simply not the recommended
+form.
+
+The action verifies the download against the release's checksum manifest
+before extracting anything, and adds `zcbctl` to PATH. The calling job
+needs `permissions: id-token: write` — without it the workflow cannot
+obtain the GitHub OIDC proof this broker exchanges.
+
+One trap on consumers using [devbox](https://www.jetify.com/devbox): if
+`devbox.json` prepends a repository `bin/` to PATH, a local wrapper of
+the same name SHADOWS the binary this action installed, and CI silently
+exercises the wrapper instead of the pinned release. Resolve the action's
+directory outside the devbox call and prepend it inside.
 
 On a laptop, install the released binary or `go install
 github.com/truvity/zitadel-ci-broker/cmd/zcbctl@latest`.
@@ -283,10 +314,12 @@ sending a token that expires mid-request.
 **One audience per identity.** Scopes are per-`identities` row, so a
 machine user that must reach two projects needs both `:aud` scopes listed.
 
-**The action pins itself by ref.** `setup-zcbctl` derives the version
-from `github.action_ref`, so `@v0.2.0` installs v0.2.0 and the two
-cannot drift. Pinning the action to a branch therefore fails closed
-rather than installing something unexpected.
+**The action cannot derive a version from a SHA.** `setup-zcbctl`
+defaults from `github.action_ref`, which carries a tag only when the
+action is referenced by tag — so SHA pinning, which is the recommended
+practice for an action handling OIDC, requires passing `version:`
+explicitly. The action fails closed rather than guessing. See
+[Install it](#0-install-it).
 
 **GitHub-only proofs.** The verification path is GitHub Actions OIDC. Other
 CI systems would need their own issuer verification; the mapping and

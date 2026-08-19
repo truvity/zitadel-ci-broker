@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [0.4.0]
+
+### Documentation
+- `setup-zcbctl`: document that the action must be pinned by commit SHA
+  **and** given `version:` explicitly. The two answer different questions
+  — the SHA pins the action's code, the input names the release it
+  downloads — and SHA pinning removes the only other source of a version,
+  since `github.action_ref` carries a tag only when the action is
+  referenced by tag. The previous example showed the tag-only form, which
+  is precisely the usage that breaks under the pinning practice
+  recommended for an action running with `id-token: write`.
+- Record the devbox PATH trap: a repository `bin/` prepended by
+  `devbox.json` shadows the binary this action installs, so CI can
+  silently exercise a local wrapper instead of the pinned release.
+
+### Changed
+- The no-version error names SHA pinning as the likely cause instead of
+  suggesting a tag ref.
+
 ## [0.3.0]
 
 ### Added
