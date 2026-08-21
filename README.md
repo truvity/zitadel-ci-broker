@@ -100,6 +100,14 @@ before extracting anything, and adds `zcbctl` to PATH. The calling job
 needs `permissions: id-token: write` — without it the workflow cannot
 obtain the GitHub OIDC proof this broker exchanges.
 
+**Reusable-workflow trap:** a called workflow's `permissions:` block is
+a ceiling — it caps the caller's grant and silently drops anything it
+does not list. If `zcbctl` runs inside a reusable workflow, the grant
+must survive the whole chain: the caller declares `id-token: write`
+AND the called workflow either declares it too or declares no block at
+all (inheriting the caller's). `truvity/ci-workflows` check.yaml capped
+it before v2.9.0 — pin v2.9.0 or later.
+
 One trap on consumers using [devbox](https://www.jetify.com/devbox): if
 `devbox.json` prepends a repository `bin/` to PATH, a local wrapper of
 the same name SHADOWS the binary this action installed, and CI silently
@@ -276,6 +284,7 @@ part of the rotation.
 | `InvalidIdentityToken` from STS | the token's audience is not in the IAM provider's ClientIDList |
 | `AccessDenied` from STS | token valid, role trust refused it — a *different* problem |
 | `token is not a JWT` from `zcbctl` | an opaque token: wrong kubeconfig context, or Zitadel not set to `ACCESS_TOKEN_TYPE_JWT` |
+| `read kubeconfig: … no such file` **on a runner** | the job holds no `id-token: write`, so `ACTIONS_ID_TOKEN_REQUEST_URL` is absent and `zcbctl` took the human path. Check the whole permissions chain — a reusable workflow's own `permissions:` block caps the caller's grant (ci-workflows check.yaml did, before v2.9.0) |
 
 **Edge filtering**: a Cloudflare-fronted deployment rejects default library
 user agents (`python-urllib`, `Go-http-client`) with a 403 the service never
