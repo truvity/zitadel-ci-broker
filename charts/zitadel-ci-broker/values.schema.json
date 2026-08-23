@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "zitadel-ci-broker chart values",
+  "description": "Strict at the top level: unknown keys are rejected so a typo fails the render instead of being silently ignored. The broker config document and Kubernetes passthrough fields stay open.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "global": { "type": "object" },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "tag": { "type": "string" }
+      }
+    },
+    "replicas": { "type": "integer", "minimum": 0 },
+    "resources": { "type": "object" },
+    "nodeSelector": { "type": "object", "additionalProperties": { "type": "string" } },
+    "tolerations": { "type": "array", "items": { "type": "object" } },
+    "config": {
+      "type": "object",
+      "description": "The broker's YAML config document, rendered verbatim — see config.example.yaml."
+    },
+    "keysSecretName": { "type": "string" }
+  }
+}
