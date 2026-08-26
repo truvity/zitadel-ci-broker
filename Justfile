@@ -9,7 +9,7 @@ fmt:
 
 # Build all binaries
 build: fmt
-    go build -o bin/zitadel-ci-broker ./cmd/zitadel-ci-broker/
+    go build -o bin/zitadel-ci-broker ./cmd/broker/
 
 # Run unit tests
 test:

@@ -1,5 +1,5 @@
 image:
-  repository: ghcr.io/truvity/zitadel-ci-broker
+  repository: ghcr.io/truvity/zitadel-ci-broker/broker
   tag: "" # required — pin a release
 
 replicas: 2
