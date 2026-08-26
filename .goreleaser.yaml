@@ -5,7 +5,7 @@ version: 2
 builds:
   # K8s/local binary.
   - id: zitadel-ci-broker
-    main: ./cmd/zitadel-ci-broker
+    main: ./cmd/broker
     binary: zitadel-ci-broker
     env:
       - CGO_ENABLED=0
@@ -68,7 +68,7 @@ kos:
     base_image: gcr.io/distroless/static:nonroot
     sbom: none
     labels:
-      org.opencontainers.image.title: zitadel-ci-broker
+      org.opencontainers.image.title: broker
       org.opencontainers.image.version: "{{ .Version }}"
       org.opencontainers.image.source: https://github.com/truvity/zitadel-ci-broker
 
