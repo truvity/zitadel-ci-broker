@@ -50,14 +50,48 @@ func New(ids []config.Identity) (*Mapper, error) {
 	return m, nil
 }
 
+// immutableSub matches GitHub's "immutable references" subject form,
+// where the org and repo segments carry `@<databaseID>` suffixes:
+//
+//	repo:my-org@123/my-repo@456:pull_request
+//
+// GitHub stamps this form BY DEFAULT on newer organizations (trust-form
+// got it from birth; truvity still emits the plain form) — it is not an
+// opt-in customization, so the broker must accept both.
+var immutableSub = regexp.MustCompile(`^repo:([^:@/]+)@[0-9]+/([^:@/]+)@[0-9]+:`)
+
+// NormalizeSubject strips the `@<databaseID>` suffixes from an
+// immutable-form subject's org and repo segments, returning the plain
+// form config subjects are written in. A subject in any other shape is
+// returned unchanged.
+func NormalizeSubject(subject string) string {
+	return immutableSub.ReplaceAllString(subject, "repo:$1/$2:")
+}
+
 // Resolve returns the first identity whose pattern matches the subject,
 // or false. First-match order is documented config semantics; rows
 // should not overlap.
+//
+// The RAW subject is tried first, then its normalized form (immutable
+// `@id` suffixes stripped). Raw-first keeps id-pinning available: a
+// config row that spells out `repo:org@123/name@456:...` binds to the
+// numeric identity and survives repo renames the way GitHub's immutable
+// subjects intend; the plain rows the estate writes today match via the
+// normalized pass. Name-based matching is the estate's existing policy
+// (the config rows are names) — normalization widens the accepted
+// TOKEN shape, not the policy.
 func (m *Mapper) Resolve(subject string) (Identity, bool) {
+	candidates := []string{subject}
+	if normalized := NormalizeSubject(subject); normalized != subject {
+		candidates = append(candidates, normalized)
+	}
+
 	for _, r := range m.rows {
 		for _, p := range r.patterns {
-			if p.MatchString(subject) {
-				return r.identity, true
+			for _, s := range candidates {
+				if p.MatchString(s) {
+					return r.identity, true
+				}
 			}
 		}
 	}
