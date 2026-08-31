@@ -15,6 +15,10 @@ type Identity struct {
 	User    string
 	KeyFile string
 	Scopes  []string
+	// Provider names the IdP that mints this identity's token. Empty
+	// means zitadel, so rows written before providers existed keep
+	// resolving to the same minter.
+	Provider string
 }
 
 // Mapper matches subjects against the compiled identity table.
@@ -33,7 +37,7 @@ func New(ids []config.Identity) (*Mapper, error) {
 	m := &Mapper{}
 
 	for i, id := range ids {
-		r := row{identity: Identity{User: id.User, KeyFile: id.KeyFile, Scopes: id.Scopes}}
+		r := row{identity: Identity{User: id.User, KeyFile: id.KeyFile, Scopes: id.Scopes, Provider: id.Provider}}
 
 		for _, sub := range id.Subjects {
 			re, err := config.CompileSubject(sub)
