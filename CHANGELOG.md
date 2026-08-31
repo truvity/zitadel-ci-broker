@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### Removed
+- **Cognito support, added in 0.7.0, is withdrawn.** The `provider`
+  field on an identity row, the `?provider=` selector on `/exchange` and
+  the Cognito minter are all gone; the broker is Zitadel-only again, as
+  its own README scopes it ("fills exactly that gap and nothing more").
+
+  Why so soon: the consumer that motivated it does not need a broker.
+  Reading the Cognito credential from SSM under an assumed role is a
+  plain AWS operation, so the tool that mints platform tokens for the
+  integration suites needs an AWS session and nothing from this service.
+  Keeping the provider here would have coupled test tooling to the
+  release cycle of a credential-minting service — every fix to the
+  former redeploying the latter — for no shared code.
+
+  Nothing consumed it: no identity row named `cognito`, and the pool it
+  anticipated was never provisioned. The token tool lives in its own
+  repository instead.
+
 ## [0.7.0]
 
 ### Added

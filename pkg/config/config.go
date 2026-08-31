@@ -27,10 +27,6 @@ type Config struct {
 	// Zitadel holds the token-issuing side.
 	Zitadel Zitadel `yaml:"zitadel"`
 
-	// Cognito holds the client_credentials issuing side. Only required
-	// when an identity sets provider: cognito.
-	Cognito Cognito `yaml:"cognito"`
-
 	// GitHub holds the token-verifying side.
 	GitHub GitHub `yaml:"github"`
 
@@ -45,22 +41,6 @@ type Zitadel struct {
 	// "https://auth.example.com". Assertions carry it as audience; the
 	// token endpoint is derived from it.
 	Domain string `yaml:"domain"`
-}
-
-// The providers a row may name. Empty means ProviderZitadel.
-const (
-	ProviderZitadel = "zitadel"
-	ProviderCognito = "cognito"
-)
-
-// Cognito configures the client_credentials issuing side, used by
-// identities with provider: cognito.
-type Cognito struct {
-	// TokenURL is the user pool's HOSTED token endpoint,
-	// https://{domain}/oauth2/token -- not the cognito-idp API host.
-	// client_credentials additionally requires a resource server with at
-	// least one custom scope; a pool without one refuses the grant.
-	TokenURL string `yaml:"tokenURL"`
 }
 
 // GitHub configures verification of the incoming OIDC token.
@@ -94,22 +74,10 @@ type Identity struct {
 	// userId).
 	KeyFile string `yaml:"keyFile"`
 
-	// Scopes requested at mint. For zitadel, must include "openid";
-	// project-audience scopes (urn:zitadel:iam:org:project:id:{id}:aud)
-	// put the target cluster's project into the token's aud. For cognito,
-	// the resource server's custom scopes.
+	// Scopes requested at mint. Must include "openid"; project-audience
+	// scopes (urn:zitadel:iam:org:project:id:{id}:aud) put the target
+	// cluster's project into the token's aud.
 	Scopes []string `yaml:"scopes"`
-
-	// Provider selects which IdP mints this row's token. Empty means
-	// "zitadel", so every existing row keeps its meaning.
-	//
-	// The broker's job is unchanged either way -- verify a GitHub
-	// workflow's OIDC proof, resolve it to ONE configured identity, mint
-	// that identity's token. The IdP is a parameter of that job, not a
-	// second job: Cognito has the same gap Zitadel does, in that its
-	// token endpoint cannot consume a GitHub OIDC assertion, so a
-	// credential has to live somewhere that is not the workflow.
-	Provider string `yaml:"provider,omitempty"`
 }
 
 // Load reads and validates a config file.
@@ -184,42 +152,15 @@ func (c *Config) validate() error {
 			return fmt.Errorf("identities[%d]: keyFile is required", i)
 		}
 
-		switch id.Provider {
-		case "", ProviderZitadel:
-			// openid is what makes Zitadel return a JWT rather than an
-			// opaque token; without it zcbctl has nothing to present.
-			hasOpenID := false
-			for _, s := range id.Scopes {
-				if s == "openid" {
-					hasOpenID = true
-				}
+		hasOpenID := false
+		for _, s := range id.Scopes {
+			if s == "openid" {
+				hasOpenID = true
 			}
+		}
 
-			if !hasOpenID {
-				return fmt.Errorf("identities[%d]: scopes must include \"openid\"", i)
-			}
-		case ProviderCognito:
-			// Refuse at load, not at mint: a pool without a resource
-			// server rejects client_credentials, and a row with no
-			// tokenURL would fail on the first workflow to match it
-			// rather than in the PR that added it.
-			if c.Cognito.TokenURL == "" {
-				return fmt.Errorf(
-					"identities[%d]: provider %q requires cognito.tokenURL (the hosted /oauth2/token endpoint)",
-					i, id.Provider)
-			}
-
-			if !strings.HasPrefix(c.Cognito.TokenURL, "https://") {
-				return fmt.Errorf("cognito.tokenURL must be an https:// URL, got %q", c.Cognito.TokenURL)
-			}
-
-			if len(id.Scopes) == 0 {
-				return fmt.Errorf(
-					"identities[%d]: provider %q requires at least one scope (Cognito refuses client_credentials without a resource-server scope)",
-					i, id.Provider)
-			}
-		default:
-			return fmt.Errorf("identities[%d]: provider %q is not one of [%q, %q]", i, id.Provider, ProviderZitadel, ProviderCognito)
+		if !hasOpenID {
+			return fmt.Errorf("identities[%d]: scopes must include \"openid\"", i)
 		}
 	}
 

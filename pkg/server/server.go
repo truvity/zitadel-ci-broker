@@ -24,21 +24,6 @@ type Deps struct {
 	Verifier *githuboidc.Verifier
 	Mapper   *mapping.Mapper
 	Minter   mint.Minter
-	// Minters holds per-provider implementations. A row naming a
-	// provider present here uses it; anything else falls back to Minter,
-	// which is the zitadel path every existing row takes.
-	Minters map[string]mint.Minter
-}
-
-// minterFor picks the implementation for one resolved identity. Provider
-// is a parameter of the same job -- verify, resolve, mint -- so the
-// selection happens here rather than in a second endpoint.
-func (d *Deps) minterFor(provider string) mint.Minter {
-	if m, ok := d.Minters[provider]; ok && m != nil {
-		return m
-	}
-
-	return d.Minter
 }
 
 // New builds the mux.
@@ -86,24 +71,13 @@ func exchange(deps *Deps, metric *prometheus.CounterVec) http.HandlerFunc {
 			return
 		}
 
-		// `?provider=` narrows resolution to rows of one provider. One
-		// workflow legitimately needs two identities -- zitadel for its
-		// kubeconfig and AWS credentials, cognito for the platform token
-		// its tests present -- and both rows carry the same subject
-		// pattern because it is the same workflow. Without the selector
-		// the second row is unreachable by list order alone.
-		//
-		// Absent, resolution is exactly what it was.
-		provider := r.URL.Query().Get("provider")
-
-		identity, ok := deps.Mapper.ResolveFor(claims.Subject, provider)
+		identity, ok := deps.Mapper.Resolve(claims.Subject)
 		if !ok {
 			// The refusal names the subject in logs, never in the
 			// response — the caller learns nothing about the map.
 			logger.WarnContext(ctx, "subject not mapped",
 				slog.String("sub", claims.Subject),
 				slog.String("repository", claims.Repository),
-				slog.String("provider", provider),
 			)
 			metric.WithLabelValues("unmapped", "").Inc()
 			httpError(w, http.StatusForbidden, "subject not mapped")
@@ -111,7 +85,7 @@ func exchange(deps *Deps, metric *prometheus.CounterVec) http.HandlerFunc {
 			return
 		}
 
-		tok, err := deps.minterFor(identity.Provider).Mint(ctx, identity.KeyFile, identity.Scopes)
+		tok, err := deps.Minter.Mint(ctx, identity.KeyFile, identity.Scopes)
 		if err != nil {
 			logger.ErrorContext(ctx, "mint failed",
 				slog.String("user", identity.User),
