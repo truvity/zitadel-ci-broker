@@ -60,12 +60,6 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		Verifier: verifier,
 		Mapper:   mapper,
 		Minter:   &mint.JWTProfileMinter{Domain: cfg.Zitadel.Domain},
-		// Registered unconditionally: with no cognito row in the mapping
-		// it is unreachable, and config.validate has already refused a
-		// cognito row whose tokenURL is missing.
-		Minters: map[string]mint.Minter{
-			config.ProviderCognito: &mint.CognitoMinter{TokenURL: cfg.Cognito.TokenURL},
-		},
 	})
 
 	srv := &http.Server{
