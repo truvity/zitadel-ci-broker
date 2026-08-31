@@ -24,6 +24,21 @@ type Deps struct {
 	Verifier *githuboidc.Verifier
 	Mapper   *mapping.Mapper
 	Minter   mint.Minter
+	// Minters holds per-provider implementations. A row naming a
+	// provider present here uses it; anything else falls back to Minter,
+	// which is the zitadel path every existing row takes.
+	Minters map[string]mint.Minter
+}
+
+// minterFor picks the implementation for one resolved identity. Provider
+// is a parameter of the same job -- verify, resolve, mint -- so the
+// selection happens here rather than in a second endpoint.
+func (d *Deps) minterFor(provider string) mint.Minter {
+	if m, ok := d.Minters[provider]; ok && m != nil {
+		return m
+	}
+
+	return d.Minter
 }
 
 // New builds the mux.
@@ -85,7 +100,7 @@ func exchange(deps *Deps, metric *prometheus.CounterVec) http.HandlerFunc {
 			return
 		}
 
-		tok, err := deps.Minter.Mint(ctx, identity.KeyFile, identity.Scopes)
+		tok, err := deps.minterFor(identity.Provider).Mint(ctx, identity.KeyFile, identity.Scopes)
 		if err != nil {
 			logger.ErrorContext(ctx, "mint failed",
 				slog.String("user", identity.User),
