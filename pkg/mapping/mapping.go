@@ -85,12 +85,33 @@ func NormalizeSubject(subject string) string {
 // (the config rows are names) — normalization widens the accepted
 // TOKEN shape, not the policy.
 func (m *Mapper) Resolve(subject string) (Identity, bool) {
+	return m.ResolveFor(subject, "")
+}
+
+// ResolveFor is Resolve narrowed to one provider.
+//
+// One subject legitimately maps to more than one identity: an SDK repo's
+// workflow needs a zitadel identity for its kubeconfig and AWS
+// credentials AND a cognito identity for the platform token its e2e
+// suite presents. Both rows carry the same `sub` pattern, because it is
+// the same workflow. First-match-wins would make the second unreachable.
+//
+// An empty want keeps the original behaviour exactly -- first row that
+// matches, whatever its provider -- so callers that do not care are
+// unaffected. The mapping is still the authorization policy: narrowing
+// only ever removes candidates, it never admits a subject that no row
+// matches.
+func (m *Mapper) ResolveFor(subject, want string) (Identity, bool) {
 	candidates := []string{subject}
 	if normalized := NormalizeSubject(subject); normalized != subject {
 		candidates = append(candidates, normalized)
 	}
 
 	for _, r := range m.rows {
+		if want != "" && providerOf(r.identity.Provider) != providerOf(want) {
+			continue
+		}
+
 		for _, p := range r.patterns {
 			for _, s := range candidates {
 				if p.MatchString(s) {
@@ -101,4 +122,15 @@ func (m *Mapper) Resolve(subject string) (Identity, bool) {
 	}
 
 	return Identity{}, false
+}
+
+// providerOf normalizes the empty provider to its default, so a row
+// written before providers existed still matches an explicit request for
+// "zitadel".
+func providerOf(p string) string {
+	if p == "" {
+		return "zitadel"
+	}
+
+	return p
 }
