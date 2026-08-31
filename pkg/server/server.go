@@ -86,13 +86,24 @@ func exchange(deps *Deps, metric *prometheus.CounterVec) http.HandlerFunc {
 			return
 		}
 
-		identity, ok := deps.Mapper.Resolve(claims.Subject)
+		// `?provider=` narrows resolution to rows of one provider. One
+		// workflow legitimately needs two identities -- zitadel for its
+		// kubeconfig and AWS credentials, cognito for the platform token
+		// its tests present -- and both rows carry the same subject
+		// pattern because it is the same workflow. Without the selector
+		// the second row is unreachable by list order alone.
+		//
+		// Absent, resolution is exactly what it was.
+		provider := r.URL.Query().Get("provider")
+
+		identity, ok := deps.Mapper.ResolveFor(claims.Subject, provider)
 		if !ok {
 			// The refusal names the subject in logs, never in the
 			// response — the caller learns nothing about the map.
 			logger.WarnContext(ctx, "subject not mapped",
 				slog.String("sub", claims.Subject),
 				slog.String("repository", claims.Repository),
+				slog.String("provider", provider),
 			)
 			metric.WithLabelValues("unmapped", "").Inc()
 			httpError(w, http.StatusForbidden, "subject not mapped")
