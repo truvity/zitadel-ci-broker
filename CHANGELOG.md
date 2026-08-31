@@ -2,6 +2,38 @@
 
 ## [Unreleased]
 
+## [0.7.0]
+
+### Added
+- **Cognito as a second token provider.** An identity row may name
+  `provider: cognito`, and the broker mints its token with the
+  `client_credentials` grant instead of Zitadel's `jwt-bearer`. Cognito
+  has the same gap this broker exists for — its token endpoint cannot
+  consume a GitHub Actions OIDC assertion, because user pools federate
+  *users* and the machine-to-machine grant takes a client id and secret —
+  so the credential lives here rather than in a workflow. Empty
+  `provider` still means zitadel, so existing rows are unchanged.
+
+  Credentials are custodied as a JSON file per identity, exactly as the
+  Zitadel machine keys are, and travel as HTTP Basic rather than form
+  fields so a confidential client's secret never reaches a request body.
+
+- **`POST /exchange?provider=`** narrows resolution to rows of one
+  provider. One workflow legitimately needs two identities — zitadel for
+  its kubeconfig and AWS credentials, cognito for the platform token its
+  tests present — and both rows carry the same `sub` pattern because it
+  is the same workflow. Without the selector the second was unreachable
+  by config list order alone. Absent, resolution is unchanged; narrowing
+  only ever removes candidates, never admits a subject no row matches.
+
+### Note
+- The repository keeps its name. Renaming would touch every consumer's
+  committed `bin/zcbctl` wrapper (the release repo is baked into it),
+  ADR-030's references and the deployment; the functional change lands
+  first on a stable name.
+- 0.4.1 through 0.6.3 have no entries here. Those were cut by the
+  auto-release lane for Renovate bumps, which writes none.
+
 ## [0.4.0]
 
 ### Documentation
