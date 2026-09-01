@@ -4,6 +4,7 @@
 //
 //	zcbctl aws --role <name|arn>   → AWS credential_process JSON
 //	zcbctl k8s                     → client.authentication.k8s.io ExecCredential
+//	zcbctl token                   → the raw Zitadel token, for test suites
 //
 // The two callers differ ONLY in how the Zitadel token is obtained:
 //
@@ -12,7 +13,7 @@
 //	       already maintains for kubectl
 //
 // Everything after that is identical, which is the point: one identity
-// plane, two surfaces, no second login and no credential to store.
+// plane, several surfaces, no second login and no credential to store.
 //
 // The human path deliberately SHELLS OUT to kubelogin rather than
 // implementing OIDC. kubelogin already owns the browser flow, the local
@@ -68,7 +69,7 @@ const (
 
 func main() {
 	if len(os.Args) < 2 {
-		fail(errors.New("usage: zcbctl <aws|k8s> [flags]"))
+		fail(errors.New("usage: zcbctl <aws|k8s|token> [flags]"))
 	}
 
 	var err error
@@ -78,8 +79,10 @@ func main() {
 		err = runAWS(os.Args[2:])
 	case "k8s":
 		err = runK8s(os.Args[2:])
+	case "token":
+		err = runToken(os.Args[2:])
 	default:
-		err = fmt.Errorf("unknown subcommand %q (want aws or k8s)", os.Args[1])
+		err = fmt.Errorf("unknown subcommand %q (want aws, k8s or token)", os.Args[1])
 	}
 
 	if err != nil {
@@ -88,7 +91,7 @@ func main() {
 }
 
 // fail writes to stderr and exits non-zero. stdout is a machine contract
-// in both subcommands and must never carry diagnostics.
+// in every subcommand and must never carry diagnostics.
 func fail(err error) {
 	fmt.Fprintln(os.Stderr, "zcbctl:", err)
 	os.Exit(1)

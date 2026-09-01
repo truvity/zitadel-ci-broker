@@ -2,6 +2,42 @@
 
 ## [Unreleased]
 
+### Added
+- **`zcbctl token`** — the Zitadel access token itself, plus a set of
+  fresh tenant ids, for the SDK integration suites. It replaces
+  `truectl stand token`, which read a Cognito user and password out of
+  SSM; that credential is being retired, and this one is nobody's
+  password.
+
+  It belongs in `zcbctl` because the hard half is already here. The
+  CI/human split — GitHub OIDC proof exchanged at the broker on a
+  runner, kubelogin's existing browser session borrowed on a laptop —
+  is one function in this binary, and everything after the token is
+  identical. So a workflow and an engineer run the **same command with
+  the same arguments**, which is what makes a suite that fails on a
+  runner reproducible at a desk. A tool of its own would have had to
+  restate that branch and then be kept in step with the broker it
+  talks to.
+
+  This does not reopen 0.7.0's Cognito question. What was withdrawn was
+  a *second identity provider* inside the broker; what lands here is a
+  client verb over the token this broker already mints — no server
+  surface, no new configuration, no coupling of test tooling to a
+  credential-minting deployment.
+
+  Tenants are minted fresh on every invocation rather than fixed in a
+  config: the platform creates a tenant lazily from the `X-Tenant-ID`
+  header and stores nothing in advance, so an unused id *is* an empty
+  tenant. Reused ids would let one run's leftovers decide the next
+  run's result. Names are the caller's, a duplicate is refused rather
+  than collapsed, and the UUIDs are hand-rolled from `crypto/rand` — a
+  module for sixteen bytes is a module running next to custodied
+  private keys, and the dependency list here is short on purpose.
+
+  `-o` writes 0600 and re-asserts the mode on a file that already
+  existed, since `O_CREATE` applies permissions only to new files and
+  the payload is a live bearer token.
+
 ### Removed
 - **Cognito support, added in 0.7.0, is withdrawn.** The `provider`
   field on an identity row, the `?provider=` selector on `/exchange` and
@@ -19,6 +55,10 @@
   Nothing consumed it: no identity row named `cognito`, and the pool it
   anticipated was never provisioned. The token tool lives in its own
   repository instead.
+
+  Superseded within this same release: the suites move to Zitadel, so
+  there is no Cognito credential left to read and no separate tool to
+  read it — see `zcbctl token` above.
 
 ## [0.7.0]
 
