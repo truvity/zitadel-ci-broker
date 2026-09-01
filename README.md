@@ -5,7 +5,8 @@ OIDC token** for a **Zitadel machine-user token** — workload identity
 federation as a service, until Zitadel ships it natively.
 
 Ships with **`zcbctl`**, the client that turns the resulting token into
-Kubernetes and AWS credentials for CI *and* for engineers.
+Kubernetes and AWS credentials — or hands it over as-is, for test suites
+that authenticate to the platform — for CI *and* for engineers.
 
 ---
 
@@ -159,6 +160,55 @@ This is the case that makes the broker more than a CI tool: an engineer
 from a partner company who authenticates to Zitadel — but has no IAM
 Identity Center account — gets AWS access with no additional provisioning.
 
+### 4. Integration suites get a token and a clean world
+
+The SDK suites (TypeScript, Java, Go) need a platform token plus tenants
+to run end-to-end. `zcbctl token` gives them both:
+
+```bash
+zcbctl token --tenants primary,secondary --api-url "$API_URL" -o .token.json
+```
+
+```json
+{
+  "access_token": "...",
+  "expires_at": "2026-09-01T10:14:57Z",
+  "tenants": {
+    "primary":   "ed5aed37-619b-4ca8-a881-f650fad87b5c",
+    "secondary": "fed60bdb-df08-4d64-8735-d0e06139086c"
+  },
+  "api_url": "https://api.example.com"
+}
+```
+
+**The same command locally and in CI.** That is the point of putting it
+here rather than in a test harness: the CI/human branch already exists in
+`zcbctl`, so a workflow and a laptop run identical arguments and differ
+only in how the token underneath is obtained. A suite that fails on a
+runner can be re-run at a desk without a second code path to distrust.
+
+**Fresh tenants every invocation.** The platform creates a tenant lazily
+from the `X-Tenant-ID` header and stores nothing in advance, so a
+previously unused id *is* a new empty tenant. Fixed ids in a config file
+would let one run's leftover documents decide the next run's result — the
+suite that passes only on the second attempt, or only on a machine that
+has run it before. The names are the caller's (`primary,secondary`,
+`alice,bob`); `zcbctl` mints one v4 UUID per name and refuses a duplicate
+rather than silently collapsing a typo into a tenant shared with itself.
+`--api-url` is passed through untouched: the pipeline derives it from the
+release under test, and `zcbctl` attaches no meaning to it.
+
+`-o` writes **0600**, and re-asserts the mode on a file that already
+existed — `O_CREATE` applies permissions only to new files, so a stale
+world-readable path would otherwise quietly receive a live bearer token.
+Without `-o` the JSON goes to stdout, which is a machine contract in
+every `zcbctl` subcommand: diagnostics only ever go to stderr, so
+`--format raw` is safe as `TOKEN=$(zcbctl token --format raw)`.
+
+It replaces `truectl stand token`, which read a Cognito user and password
+out of SSM — a stored credential being retired. This one is nobody's
+password.
+
 ---
 
 ## How it works
@@ -189,6 +239,7 @@ From a workflow, without `zcbctl`:
 ```
 zcbctl aws --role <name|arn> [--account] [--region] [--session-name] [--context]
 zcbctl k8s [--context]
+zcbctl token [--tenants ...] [--api-url ...] [-o file] [--format json|raw]
 ```
 
 Token acquisition branches on `ACTIONS_ID_TOKEN_REQUEST_URL`:
@@ -197,7 +248,7 @@ Token acquisition branches on `ACTIONS_ID_TOKEN_REQUEST_URL`:
 - **unset** → human: run the kubeconfig context's `oidc-login` command
   and take the token from its `ExecCredential`
 
-Everything after that is identical. The AWS call is
+Everything after that is identical, for all three verbs. The AWS call is
 `AssumeRoleWithWebIdentity`, which is **unsigned** — the token is the only
 credential — so `zcbctl` needs no AWS SDK and no ambient AWS
 configuration. That is deliberate: the tool must work for someone who has
